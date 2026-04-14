@@ -183,7 +183,7 @@ body { background: var(--color-bg-secondary); }</style><style id="qw-print-fix">
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
 
-  .stack { display: flex; flex-direction: column; gap: 6px; }
+  .stack { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
   .layer {
     display: flex; align-items: stretch; gap: 0;
     border-radius: 8px;
@@ -224,12 +224,19 @@ body { background: var(--color-bg-secondary); }</style><style id="qw-print-fix">
   }
   .comp.dimmed { opacity: 0.2; }
 
+  .main-layout {
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+
   .dep-panel {
-    margin-top: 16px; padding: 16px 20px; border-radius: 8px;
+    width: 360px; min-width: 360px; padding: 16px 20px; border-radius: 8px;
     background: var(--color-surface);
     border: 1px solid var(--color-border-light);
     display: none; font-size: 13px;
     line-height: 1.6;
+    position: sticky; top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
   }
   .dep-panel h3 { font-size: 16px; margin-bottom: 10px; color: var(--color-text); }
   .dep-section { margin-bottom: 10px; }
@@ -268,8 +275,10 @@ body { background: var(--color-bg-secondary); }</style><style id="qw-print-fix">
 <p class="subtitle">Click any component to see dependencies, dependents, and a detailed explanation</p>
 
 <div class="legend" id="legend"></div>
-<div class="stack" id="stack"></div>
-<div class="dep-panel" id="depPanel"></div>
+<div class="main-layout">
+  <div class="stack" id="stack"></div>
+  <div class="dep-panel" id="depPanel"></div>
+</div>
 <p class="hint">↑ Higher abstraction &nbsp;|&nbsp; ↓ Lower-level (closer to hardware)</p>
 
 <script>
@@ -814,7 +823,6 @@ function selectComp(name) {
 
   panel.innerHTML = html;
   panel.style.display = 'block';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 </script>
 </body>
