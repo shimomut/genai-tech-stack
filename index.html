@@ -291,7 +291,7 @@ const layers = [
   { name: 'CUDA &\nRuntime', color: '#22c55e',
     comps: ['CUDA Toolkit','cuDNN','cuBLAS','CUTLASS','CUDA Graphs'] },
   { name: 'Drivers', color: '#14b8a6',
-    comps: ['NVIDIA Driver','EFA Driver','Libfabric (driver)','NVML'] },
+    comps: ['NVIDIA Driver','EFA Driver','NVML'] },
   { name: 'Hardware', color: '#64748b',
     comps: ['GPU (A100/H100/B200)','NVLink / NVSwitch','InfiniBand / EFA NIC','CPU / Host Memory'] },
 ];
@@ -303,17 +303,17 @@ const deps = {
   'CPU / Host Memory': [],
   'NVIDIA Driver': ['GPU (A100/H100/B200)'],
   'EFA Driver': ['InfiniBand / EFA NIC'],
-  'Libfabric (driver)': ['EFA Driver','InfiniBand / EFA NIC'],
+
   'NVML': ['NVIDIA Driver'],
   'CUDA Toolkit': ['NVIDIA Driver','GPU (A100/H100/B200)'],
   'cuDNN': ['CUDA Toolkit'],
   'cuBLAS': ['CUDA Toolkit'],
   'CUTLASS': ['CUDA Toolkit'],
   'CUDA Graphs': ['CUDA Toolkit'],
-  'NCCL': ['CUDA Toolkit','NVLink / NVSwitch','Libfabric (driver)','NVIDIA Driver'],
-  'MPI (Open MPI)': ['Libfabric (driver)'],
+  'NCCL': ['CUDA Toolkit','NVLink / NVSwitch','Libfabric','NVIDIA Driver'],
+  'MPI (Open MPI)': ['Libfabric'],
   'RDMA / InfiniBand': ['InfiniBand / EFA NIC'],
-  'Libfabric': ['EFA Driver'],
+  'Libfabric': ['EFA Driver','InfiniBand / EFA NIC'],
   'PyTorch': ['CUDA Toolkit','cuDNN','cuBLAS','NCCL','CPU / Host Memory'],
   'JAX': ['CUDA Toolkit','cuDNN','cuBLAS','NCCL'],
   'TensorFlow': ['CUDA Toolkit','cuDNN','cuBLAS','NCCL'],
@@ -382,10 +382,7 @@ const explanations = {
     desc: 'Kernel module for AWS Elastic Fabric Adapter. Enables OS-bypass networking where applications (via Libfabric) can send/receive data directly from user space without kernel involvement, dramatically reducing latency. Required on every EC2 instance in a distributed training or inference cluster on AWS.',
     context: 'AWS networking', scope: 'Training + Inference', license: 'Open source (AWS)'
   },
-  'Libfabric (driver)': {
-    desc: 'User-space fabric communication library (OpenFabrics Interfaces). Provides a unified API across different network fabrics — EFA, InfiniBand verbs, TCP sockets. NCCL uses Libfabric as its transport layer on AWS. It abstracts the network hardware so upper layers don\'t need to know whether they\'re on EFA, InfiniBand, or ethernet.',
-    context: 'Network abstraction', scope: 'Training + Inference', license: 'Open source (BSD)'
-  },
+
   'NVML': {
     desc: 'NVIDIA Management Library — a C-based API for monitoring and managing GPU devices. Provides programmatic access to GPU temperature, power draw, utilization, memory usage, ECC errors, and clock speeds. Used by DCGM, nvidia-smi, and monitoring tools like Prometheus exporters.',
     context: 'Monitoring', scope: 'Operations', license: 'Proprietary (NVIDIA)'
@@ -423,7 +420,7 @@ const explanations = {
     context: 'Inter-node transport', scope: 'Training + Inference', license: 'Hardware standard'
   },
   'Libfabric': {
-    desc: 'The user-space networking API that abstracts different fabric providers (EFA, verbs, TCP). Higher-level libraries like NCCL use Libfabric as their transport plugin on AWS. It provides connection management, message passing, and RDMA operations through a unified interface regardless of the underlying network hardware.',
+    desc: 'User-space fabric communication library (OpenFabrics Interfaces). Provides a unified API across different network fabrics — EFA, InfiniBand verbs, TCP sockets. NCCL and MPI use Libfabric as their transport layer on AWS. It provides connection management, message passing, and RDMA operations through a unified interface, abstracting the network hardware so upper layers don\'t need to know whether they\'re on EFA, InfiniBand, or ethernet.',
     context: 'Network abstraction', scope: 'Training + Inference', license: 'Open source (BSD)'
   },
   'PyTorch': {
