@@ -266,6 +266,8 @@ body { background: var(--color-bg-secondary); }</style><style id="qw-print-fix">
     font-size: 11.5px; color: var(--color-text-muted);
   }
   .detail-item strong { color: var(--color-text-secondary); }
+  .detail-item a { color: var(--color-primary); text-decoration: none; word-break: break-all; }
+  .detail-item a:hover { text-decoration: underline; }
 
   .hint { text-align: center; font-size: 11px; color: var(--color-text-muted); margin-top: 12px; }
 </style>
@@ -403,15 +405,18 @@ const deps = {
 const explanations = {
   'GPU (A100/H100/B200)': {
     desc: 'NVIDIA data center GPUs are the foundational compute hardware for GenAI. The A100 (Ampere, 80GB HBM2e) introduced 3rd-gen Tensor Cores. The H100 (Hopper, 80GB HBM3) added FP8 Tensor Cores and the Transformer Engine for 4× training speedup. The B200 (Blackwell) doubles that again with 2nd-gen Transformer Engine.',
-    context: 'Training', scope: 'Training + Inference', license: 'Proprietary (NVIDIA)'
+    context: 'Training', scope: 'Training + Inference', license: 'Proprietary (NVIDIA)',
+    url: 'https://www.nvidia.com/en-us/data-center/technologies/hopper-gpu-architecture/'
   },
   'NVLink / NVSwitch': {
     desc: 'High-bandwidth interconnect for GPU-to-GPU communication within a single node. NVLink 4.0 (H100) provides 900 GB/s bidirectional bandwidth per GPU — 7× faster than PCIe Gen5. NVSwitch enables all-to-all GPU connectivity in a DGX system, critical for tensor parallelism where GPUs need to exchange activations at every layer.',
-    context: 'Intra-node distributed', scope: 'Training + Inference', license: 'Proprietary (NVIDIA)'
+    context: 'Intra-node distributed', scope: 'Training + Inference', license: 'Proprietary (NVIDIA)',
+    url: 'https://www.nvidia.com/en-us/data-center/nvlink/'
   },
   'InfiniBand / EFA NIC': {
     desc: 'Network interface for inter-node communication. InfiniBand (400 Gb/s NDR) is the standard for on-prem GPU clusters. AWS Elastic Fabric Adapter (EFA) provides similar low-latency, high-bandwidth networking in the cloud with OS-bypass capability, enabling RDMA-like performance for NCCL collectives across nodes.',
-    context: 'Inter-node distributed', scope: 'Training + Inference', license: 'Hardware / AWS service'
+    context: 'Inter-node distributed', scope: 'Training + Inference', license: 'Hardware / AWS service',
+    url: 'https://aws.amazon.com/hpc/efa/'
   },
   'CPU / Host Memory': {
     desc: 'The host processor and system RAM. Used for data preprocessing, tokenization, batch assembly, and orchestration. Also the execution target for CPU-only inference (llama.cpp). In training, CPU memory is used for ZeRO offloading (DeepSpeed) to extend effective GPU memory.',
@@ -419,212 +424,264 @@ const explanations = {
   },
   'NVIDIA Driver': {
     desc: 'The kernel-mode driver that provides the OS interface to NVIDIA GPUs. It exposes the GPU\'s compute, memory management, and display capabilities to user-space software. Must be version-compatible with the CUDA Toolkit — a driver version supports all CUDA toolkit versions up to a certain point (forward compatibility).',
-    context: 'System', scope: 'Training + Inference', license: 'Proprietary (NVIDIA)'
+    context: 'System', scope: 'Training + Inference', license: 'Proprietary (NVIDIA)',
+    url: 'https://www.nvidia.com/en-us/drivers/'
   },
   'EFA Driver': {
     desc: 'Kernel module for AWS Elastic Fabric Adapter. Enables OS-bypass networking where applications (via Libfabric) can send/receive data directly from user space without kernel involvement, dramatically reducing latency. Required on every EC2 instance in a distributed training or inference cluster on AWS.',
-    context: 'AWS networking', scope: 'Training + Inference', license: 'Open source (AWS)'
+    context: 'AWS networking', scope: 'Training + Inference', license: 'Open source (AWS)',
+    url: 'https://github.com/amzn/amzn-drivers'
   },
 
   'NVML': {
     desc: 'NVIDIA Management Library — a C-based API for monitoring and managing GPU devices. Provides programmatic access to GPU temperature, power draw, utilization, memory usage, ECC errors, and clock speeds. Used by DCGM, nvidia-smi, and monitoring tools like Prometheus exporters.',
-    context: 'Monitoring', scope: 'Operations', license: 'Proprietary (NVIDIA)'
+    context: 'Monitoring', scope: 'Operations', license: 'Proprietary (NVIDIA)',
+    url: 'https://developer.nvidia.com/management-library-nvml'
   },
   'CUDA Toolkit': {
     desc: 'The core GPU programming platform. Includes the nvcc compiler, runtime API, driver API, and a suite of libraries (cuBLAS, cuDNN, cuFFT, cuRAND, etc.). CUDA provides the programming model (threads, blocks, grids) that all GPU-accelerated ML software is built on. Version compatibility between the toolkit, driver, and frameworks is one of the most common pain points in GenAI infrastructure.',
-    context: 'Core runtime', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)'
+    context: 'Core runtime', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)',
+    url: 'https://developer.nvidia.com/cuda-toolkit'
   },
   'cuDNN': {
     desc: 'CUDA Deep Neural Network library. Provides highly optimized implementations of standard DNN operations: convolutions, attention, normalization, activation functions, and RNNs. PyTorch and TensorFlow delegate most heavy compute to cuDNN. It selects the fastest algorithm variant at runtime based on input dimensions and GPU architecture (autotuning).',
-    context: 'DNN primitives', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)'
+    context: 'DNN primitives', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)',
+    url: 'https://developer.nvidia.com/cudnn'
   },
   'cuBLAS': {
     desc: 'CUDA Basic Linear Algebra Subroutines. Provides GPU-accelerated matrix multiplication (GEMM), which is the dominant operation in transformer models. A single forward pass through a large LLM is essentially hundreds of large matrix multiplies. cuBLAS selects optimized kernels based on matrix dimensions, data types (FP16, BF16, FP8, INT8), and GPU architecture.',
-    context: 'Linear algebra', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)'
+    context: 'Linear algebra', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)',
+    url: 'https://developer.nvidia.com/cublas'
   },
   'CUTLASS': {
     desc: 'CUDA Templates for Linear Algebra Subroutines — a collection of CUDA C++ template abstractions for implementing high-performance GEMM kernels. Unlike cuBLAS (precompiled), CUTLASS lets you write custom fused kernels. Flash Attention, Transformer Engine, and TensorRT-LLM all use CUTLASS to build specialized attention and GEMM kernels that fuse multiple operations.',
-    context: 'Custom kernels', scope: 'Training + Inference', license: 'Open source (BSD, NVIDIA)'
+    context: 'Custom kernels', scope: 'Training + Inference', license: 'Open source (BSD, NVIDIA)',
+    url: 'https://github.com/NVIDIA/cutlass'
   },
   'CUDA Graphs': {
     desc: 'A CUDA feature that captures a sequence of GPU operations (kernel launches, memory copies) into a graph, then replays it with minimal CPU overhead. In LLM inference, the decode phase launches the same kernels repeatedly — CUDA Graphs eliminates the per-launch CPU overhead, improving throughput by 10-30% for small batch sizes. Used extensively by vLLM and TensorRT-LLM.',
-    context: 'Performance optimization', scope: 'Primarily Inference', license: 'Part of CUDA Toolkit'
+    context: 'Performance optimization', scope: 'Primarily Inference', license: 'Part of CUDA Toolkit',
+    url: 'https://developer.nvidia.com/blog/cuda-graphs/'
   },
   'NCCL': {
     desc: 'NVIDIA Collective Communications Library. Implements multi-GPU and multi-node collective operations: AllReduce, AllGather, ReduceScatter, Broadcast, etc. These are the fundamental building blocks of distributed training — gradient synchronization (AllReduce in data parallelism), activation exchange (AllGather in tensor parallelism), and parameter sharding (ReduceScatter in FSDP/ZeRO). NCCL auto-detects NVLink, NVSwitch, PCIe, and network topology to choose optimal algorithms.',
-    context: 'Distributed compute', scope: 'Training + Inference', license: 'Open source (BSD, NVIDIA)'
+    context: 'Distributed compute', scope: 'Training + Inference', license: 'Open source (BSD, NVIDIA)',
+    url: 'https://github.com/NVIDIA/nccl'
   },
   'MPI (Open MPI)': {
     desc: 'Message Passing Interface — the standard for distributed process management in HPC. In GenAI, MPI is primarily used as a process launcher (mpirun) and for out-of-band coordination, while NCCL handles the actual GPU data transfers. Some legacy training scripts use MPI collectives directly, but most modern frameworks use NCCL for GPU communication and MPI/torchrun only for bootstrapping.',
-    context: 'Process management', scope: 'Training', license: 'Open source (BSD)'
+    context: 'Process management', scope: 'Training', license: 'Open source (BSD)',
+    url: 'https://www.open-mpi.org/'
   },
   'RDMA / InfiniBand': {
     desc: 'Remote Direct Memory Access over InfiniBand fabric. Allows one machine to read/write another machine\'s memory without involving either CPU or OS kernel, achieving ultra-low latency (~1μs) and high bandwidth (400 Gb/s). NCCL uses RDMA verbs for inter-node GPU communication in on-prem clusters. AWS EFA provides similar RDMA-like semantics in the cloud.',
-    context: 'Inter-node transport', scope: 'Training + Inference', license: 'Hardware standard'
+    context: 'Inter-node transport', scope: 'Training + Inference', license: 'Hardware standard',
+    url: 'https://www.infinibandta.org/'
   },
   'Libfabric': {
     desc: 'User-space fabric communication library (OpenFabrics Interfaces). Provides a unified API across different network fabrics — EFA, InfiniBand verbs, TCP sockets. NCCL and MPI use Libfabric as their transport layer on AWS. It provides connection management, message passing, and RDMA operations through a unified interface, abstracting the network hardware so upper layers don\'t need to know whether they\'re on EFA, InfiniBand, or ethernet.',
-    context: 'Network abstraction', scope: 'Training + Inference', license: 'Open source (BSD)'
+    context: 'Network abstraction', scope: 'Training + Inference', license: 'Open source (BSD)',
+    url: 'https://ofiwg.github.io/libfabric/'
   },
   'PyTorch': {
     desc: 'The dominant deep learning framework for GenAI. Provides automatic differentiation (autograd), GPU-accelerated tensor operations, and a Pythonic eager-execution model. Its ecosystem is massive: torch.distributed for multi-GPU training, torch.compile for JIT optimization, and deep integration with CUDA, cuDNN, and NCCL. Nearly all major LLMs (LLaMA, Mistral, Falcon) are trained and served with PyTorch.',
-    context: 'Core framework', scope: 'Training + Inference', license: 'Open source (BSD)'
+    context: 'Core framework', scope: 'Training + Inference', license: 'Open source (BSD)',
+    url: 'https://pytorch.org/'
   },
   'JAX': {
     desc: 'Google\'s ML framework combining NumPy semantics with XLA compilation and automatic differentiation. JAX compiles entire computation graphs to XLA HLO, enabling aggressive optimizations (operator fusion, memory planning). Used to train Google\'s largest models (Gemini, PaLM). Its functional programming model (pure functions + transformations like jit, grad, vmap, pmap) differs fundamentally from PyTorch\'s imperative style.',
-    context: 'Core framework', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Core framework', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/jax-ml/jax'
   },
   'TensorFlow': {
     desc: 'Google\'s original production ML framework. While losing mindshare to PyTorch in research, it remains widely deployed in production via TensorFlow Serving, TFLite (mobile/edge), and TF.js (browser). Its graph-based execution model enables ahead-of-time optimization. Still used for recommendation models and some legacy training pipelines.',
-    context: 'Core framework', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Core framework', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://www.tensorflow.org/'
   },
   'GPTQ': {
     desc: 'Post-training quantization method that compresses model weights to 4-bit or 3-bit integers with minimal accuracy loss. Uses second-order information (Hessian inverse) to find optimal quantized values. Reduces model size by 4× and enables running 70B-parameter models on a single GPU. The quantization is applied once offline; inference uses custom CUDA kernels for dequantization during matrix multiply.',
-    context: 'Model compression', scope: 'Inference', license: 'Open source (MIT)'
+    context: 'Model compression', scope: 'Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/AutoGPTQ/AutoGPTQ'
   },
   'AWQ': {
     desc: 'Activation-Aware Weight Quantization. Identifies the ~1% of weights that are critical for accuracy (based on activation magnitudes) and protects them during quantization. Achieves better accuracy than naive INT4 quantization, especially for small models. Faster kernel implementation than GPTQ for inference. Supported natively by vLLM and TGI.',
-    context: 'Model compression', scope: 'Inference', license: 'Open source (MIT)'
+    context: 'Model compression', scope: 'Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/mit-han-lab/llm-awq'
   },
   'bitsandbytes': {
     desc: 'Library for 8-bit and 4-bit quantization of both optimizers (for training) and weights (for inference). Its 8-bit Adam optimizer enables fine-tuning large models with 50% less GPU memory. The 4-bit NormalFloat (NF4) data type is the foundation of QLoRA — fine-tuning a 4-bit quantized base model with trainable LoRA adapters.',
-    context: 'Quantization + Fine-tuning', scope: 'Training + Inference', license: 'Open source (MIT)'
+    context: 'Quantization + Fine-tuning', scope: 'Training + Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/bitsandbytes-foundation/bitsandbytes'
   },
   'SmoothQuant': {
     desc: 'Quantization technique that smooths activation outliers by migrating quantization difficulty from activations to weights. Transformers have a few channels with very large activation values that break naive INT8 quantization. SmoothQuant applies a per-channel scaling that balances the dynamic range between weights and activations, enabling accurate INT8 inference (W8A8).',
-    context: 'INT8 inference', scope: 'Inference', license: 'Open source (MIT)'
+    context: 'INT8 inference', scope: 'Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/mit-han-lab/smoothquant'
   },
   'Transformer Engine': {
     desc: 'NVIDIA\'s library for FP8 mixed-precision training on Hopper and Blackwell GPUs. It dynamically selects FP8 vs FP16/BF16 precision per layer based on tensor statistics, using a delayed scaling algorithm that tracks value distributions. FP8 doubles the throughput of Tensor Cores compared to FP16/BF16. Critical component of Megatron-LM for large-scale training.',
-    context: 'FP8 training', scope: 'Training', license: 'Open source (Apache 2.0, NVIDIA)'
+    context: 'FP8 training', scope: 'Training', license: 'Open source (Apache 2.0, NVIDIA)',
+    url: 'https://github.com/NVIDIA/TransformerEngine'
   },
   'torch.compile': {
     desc: 'PyTorch\'s JIT compiler (introduced in PyTorch 2.0). Traces a model\'s Python code into a graph, applies optimizations (operator fusion, memory planning), and generates optimized kernels via backends like TorchInductor (which uses Triton). Can speed up training and inference by 20-50% with a single line of code. Works with dynamic shapes and Python control flow.',
-    context: 'Compiler optimization', scope: 'Training + Inference', license: 'Open source (BSD, part of PyTorch)'
+    context: 'Compiler optimization', scope: 'Training + Inference', license: 'Open source (BSD, part of PyTorch)',
+    url: 'https://pytorch.org/docs/stable/torch.compiler.html'
   },
   'Triton (OpenAI)': {
     desc: 'A Python-based language for writing GPU kernels without CUDA C++. Triton compiles Python-like code to optimized GPU machine code, handling tiling, memory coalescing, and shared memory automatically. It\'s the backend for torch.compile/TorchInductor and is used to write custom kernels (e.g., fused attention variants, quantized matmuls) with much less effort than raw CUDA.',
-    context: 'Kernel authoring', scope: 'Training + Inference', license: 'Open source (MIT)'
+    context: 'Kernel authoring', scope: 'Training + Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/triton-lang/triton'
   },
   'Megatron-LM': {
     desc: 'NVIDIA\'s framework for training massive language models. Implements 3D parallelism: tensor parallelism (split layers across GPUs), pipeline parallelism (split model stages across nodes), and data parallelism. Combined with Transformer Engine for FP8 and sequence parallelism for long contexts. Used to train models from 1B to 1T+ parameters. Requires careful tuning of parallelism dimensions to match cluster topology.',
-    context: 'Large-scale training', scope: 'Training', license: 'Open source (Apache 2.0, NVIDIA)'
+    context: 'Large-scale training', scope: 'Training', license: 'Open source (Apache 2.0, NVIDIA)',
+    url: 'https://github.com/NVIDIA/Megatron-LM'
   },
   'DeepSpeed': {
     desc: 'Microsoft\'s distributed training library built on PyTorch. Its core innovation is ZeRO (Zero Redundancy Optimizer) which partitions optimizer states, gradients, and parameters across GPUs to reduce memory footprint. ZeRO Stage 3 enables training models that don\'t fit on a single GPU. Also provides pipeline parallelism, sparse attention, and ZeRO-Offload (CPU/NVMe offloading).',
-    context: 'Distributed training', scope: 'Training', license: 'Open source (Apache 2.0)'
+    context: 'Distributed training', scope: 'Training', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/microsoft/DeepSpeed'
   },
   'FSDP': {
     desc: 'Fully Sharded Data Parallel — PyTorch\'s native equivalent of ZeRO Stage 3. Shards model parameters, gradients, and optimizer states across GPUs, gathering them on-demand for each forward/backward pass. Being native to PyTorch, it integrates cleanly with torch.compile, mixed precision, and activation checkpointing. Preferred over DeepSpeed for many new projects due to simpler configuration.',
-    context: 'Distributed training', scope: 'Training', license: 'Open source (BSD, part of PyTorch)'
+    context: 'Distributed training', scope: 'Training', license: 'Open source (BSD, part of PyTorch)',
+    url: 'https://pytorch.org/docs/stable/fsdp.html'
   },
   'NeMo': {
     desc: 'NVIDIA\'s end-to-end framework for building, training, and deploying generative AI models. Built on top of PyTorch, Megatron-LM, and Transformer Engine. Provides pre-built recipes for LLM training, speech (ASR/TTS), and multimodal models. Handles data preprocessing, distributed training configuration, and export to TensorRT-LLM for optimized inference.',
-    context: 'End-to-end platform', scope: 'Training + Inference', license: 'Open source (Apache 2.0, NVIDIA)'
+    context: 'End-to-end platform', scope: 'Training + Inference', license: 'Open source (Apache 2.0, NVIDIA)',
+    url: 'https://github.com/NVIDIA/NeMo'
   },
   'Flash Attention': {
     desc: 'An IO-aware exact attention algorithm that avoids materializing the full N×N attention matrix in GPU HBM. Instead, it tiles the computation and keeps intermediate results in fast SRAM (shared memory), reducing memory usage from O(N²) to O(N) and improving speed by 2-4×. A critical dependency for both training (enables longer sequences) and inference (faster prefill). Flash Attention 2 further optimizes parallelism across the sequence dimension.',
-    context: 'Attention optimization', scope: 'Training + Inference', license: 'Open source (BSD)'
+    context: 'Attention optimization', scope: 'Training + Inference', license: 'Open source (BSD)',
+    url: 'https://github.com/Dao-AILab/flash-attention'
   },
   'Apex': {
     desc: 'NVIDIA\'s PyTorch extension providing fused optimizers (FusedAdam, FusedLAMB) and the original AMP (Automatic Mixed Precision) implementation. Fused optimizers combine the parameter update step into a single CUDA kernel instead of multiple Python-level operations. Largely superseded by PyTorch\'s native AMP and torch.optim, but still used in some legacy codebases and Megatron-LM.',
-    context: 'Training optimization', scope: 'Training', license: 'Open source (BSD, NVIDIA)'
+    context: 'Training optimization', scope: 'Training', license: 'Open source (BSD, NVIDIA)',
+    url: 'https://github.com/NVIDIA/apex'
   },
   'vLLM': {
     desc: 'High-throughput LLM inference engine from UC Berkeley. Its core innovation is PagedAttention, which manages KV cache memory like virtual memory pages — non-contiguous allocation eliminates fragmentation and waste. Combined with continuous batching (dynamic batching of requests at the iteration level), it achieves 2-4× higher throughput than naive serving. Supports tensor parallelism, speculative decoding, and an OpenAI-compatible API.',
-    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0)'
+    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/vllm-project/vllm'
   },
   'TensorRT-LLM': {
     desc: 'NVIDIA\'s optimized LLM inference engine. Compiles models into TensorRT engines with fused kernels, FP8/INT8 quantization, and custom attention implementations. Supports in-flight batching, paged KV cache, tensor parallelism, and speculative decoding. Achieves the highest single-GPU throughput on NVIDIA hardware but requires an explicit compilation step and is less flexible than vLLM for rapid model iteration.',
-    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0, NVIDIA)'
+    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0, NVIDIA)',
+    url: 'https://github.com/NVIDIA/TensorRT-LLM'
   },
   'Triton Inference Server': {
     desc: 'NVIDIA\'s model serving platform that supports multiple frameworks (TensorRT, PyTorch, TensorFlow, ONNX) behind a unified API. Provides dynamic batching, model ensembles, model versioning, and concurrent model execution. Often used as the front-end server with TensorRT-LLM as the backend engine. Supports gRPC and HTTP/REST protocols.',
-    context: 'Model serving', scope: 'Inference', license: 'Open source (BSD, NVIDIA)'
+    context: 'Model serving', scope: 'Inference', license: 'Open source (BSD, NVIDIA)',
+    url: 'https://github.com/triton-inference-server/server'
   },
   'TGI': {
     desc: 'HuggingFace\'s Text Generation Inference server. Written in Rust (for the router) with Python/PyTorch backends. Supports continuous batching, Flash Attention, tensor parallelism, and quantization (GPTQ, AWQ, bitsandbytes). Tightly integrated with the HuggingFace model hub — deploy any compatible model with a single command. Used by HuggingFace\'s Inference Endpoints service.',
-    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0)'
+    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/huggingface/text-generation-inference'
   },
   'SGLang': {
     desc: 'Structured Generation Language — a serving framework optimized for complex LLM programs with multiple generation calls, branching, and constrained decoding. Its RadixAttention engine efficiently reuses KV cache across requests that share common prefixes. Faster than vLLM for multi-turn and agentic workloads where prefix sharing is high.',
-    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0)'
+    context: 'LLM serving', scope: 'Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/sgl-project/sglang'
   },
   'llama.cpp': {
     desc: 'C/C++ implementation of LLaMA inference that runs on CPU (and optionally GPU via Metal, CUDA, Vulkan). Uses GGUF quantized model format supporting 2-bit to 8-bit quantization. Enables running 7B-70B models on consumer hardware (laptops, desktops) without NVIDIA GPUs. The foundation of many local AI tools (Ollama, LM Studio, GPT4All).',
-    context: 'CPU/edge inference', scope: 'Inference', license: 'Open source (MIT)'
+    context: 'CPU/edge inference', scope: 'Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/ggerganov/llama.cpp'
   },
   'ONNX Runtime': {
     desc: 'Microsoft\'s cross-platform inference runtime. Executes models in ONNX format with optimization passes (graph fusion, constant folding) and hardware-specific execution providers (CUDA, TensorRT, DirectML, OpenVINO). Useful for deploying models across diverse hardware. Less LLM-specific than vLLM/TRT-LLM but widely used for non-generative models and edge deployment.',
-    context: 'Cross-platform inference', scope: 'Inference', license: 'Open source (MIT)'
+    context: 'Cross-platform inference', scope: 'Inference', license: 'Open source (MIT)',
+    url: 'https://onnxruntime.ai/'
   },
   'HF Transformers': {
     desc: 'The standard library for working with pre-trained models. Provides a unified API (AutoModel, AutoTokenizer, pipeline) for 200k+ models on the HuggingFace Hub. Handles model loading, tokenization, and generation with a consistent interface across architectures. The starting point for most LLM projects before moving to specialized serving frameworks.',
-    context: 'Model library', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Model library', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/huggingface/transformers'
   },
   'SentencePiece': {
     desc: 'Google\'s unsupervised text tokenizer implementing BPE and Unigram language model algorithms. Operates directly on raw text without pre-tokenization, making it language-agnostic. Used by LLaMA, T5, and many multilingual models. Trains a vocabulary from a text corpus and produces subword tokens — the input representation that all transformer models consume.',
-    context: 'Tokenization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Tokenization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/google/sentencepiece'
   },
   'tiktoken': {
     desc: 'OpenAI\'s fast BPE tokenizer written in Rust with Python bindings. Used by GPT-3.5, GPT-4, and related models. Implements byte-level BPE with special token handling. Notable for its speed (3-6× faster than HuggingFace Tokenizers for encoding) and exact compatibility with OpenAI\'s API token counting.',
-    context: 'Tokenization', scope: 'Training + Inference', license: 'Open source (MIT)'
+    context: 'Tokenization', scope: 'Training + Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/openai/tiktoken'
   },
   'HF Tokenizers': {
     desc: 'HuggingFace\'s Rust-based tokenizer library. Implements BPE, WordPiece, Unigram, and other algorithms with a unified pipeline (normalization → pre-tokenization → model → post-processing). Extremely fast (can encode 1GB of text in <20s). Used by HF Transformers for most model architectures.',
-    context: 'Tokenization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Tokenization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/huggingface/tokenizers'
   },
   'Arrow / Parquet': {
     desc: 'Apache Arrow is an in-memory columnar data format optimized for analytical workloads. Parquet is its on-disk counterpart. Together they enable zero-copy reads, efficient filtering, and fast data loading for training datasets. HuggingFace Datasets uses Arrow as its backend, enabling memory-mapped access to datasets larger than RAM.',
-    context: 'Data storage', scope: 'Training', license: 'Open source (Apache 2.0)'
+    context: 'Data storage', scope: 'Training', license: 'Open source (Apache 2.0)',
+    url: 'https://arrow.apache.org/'
   },
   'WebDataset': {
     desc: 'A PyTorch-compatible library for reading training data from tar archives using sequential/streaming access. Designed for large-scale distributed training where datasets are stored on cloud storage (S3, GCS). Avoids the random-access overhead of traditional datasets by streaming sharded tar files, with built-in shuffling and parallel loading.',
-    context: 'Data loading', scope: 'Training', license: 'Open source (BSD)'
+    context: 'Data loading', scope: 'Training', license: 'Open source (BSD)',
+    url: 'https://github.com/webdataset/webdataset'
   },
   'HF Datasets': {
     desc: 'HuggingFace\'s data loading library. Provides access to 100k+ datasets on the Hub with streaming, caching, and memory-mapping via Apache Arrow. Supports common data processing operations (map, filter, sort) that execute out-of-core on datasets larger than RAM. The standard tool for data preparation in LLM fine-tuning.',
-    context: 'Data processing', scope: 'Training', license: 'Open source (Apache 2.0)'
+    context: 'Data processing', scope: 'Training', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/huggingface/datasets'
   },
   'Docker': {
     desc: 'Container runtime that packages the entire software stack (CUDA, PyTorch, libraries) into reproducible images. NVIDIA\'s NGC catalog provides pre-built Docker images with optimized configurations. The nvidia-container-toolkit enables GPU access from inside containers. Essential for reproducible environments and deployment consistency.',
-    context: 'Containerization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Containerization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://www.docker.com/'
   },
   'Kubernetes': {
     desc: 'Container orchestration platform for managing inference serving clusters. Handles scaling, load balancing, rolling updates, and health checks for model serving deployments. With GPU scheduling plugins and operators (e.g., KubeFlow, NVIDIA GPU Operator), it manages GPU allocation across multiple models and replicas.',
-    context: 'Orchestration', scope: 'Inference (primarily)', license: 'Open source (Apache 2.0)'
+    context: 'Orchestration', scope: 'Inference (primarily)', license: 'Open source (Apache 2.0)',
+    url: 'https://kubernetes.io/'
   },
   'Ray': {
     desc: 'Distributed compute framework used by vLLM as its execution backend. Ray manages worker processes across GPUs and nodes, handles scheduling, and provides actor-based parallelism. Ray Serve adds HTTP serving capabilities. Also used for distributed hyperparameter tuning (Ray Tune) and data processing (Ray Data) in ML pipelines.',
-    context: 'Distributed runtime', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Distributed runtime', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://www.ray.io/'
   },
   'Slurm': {
     desc: 'HPC job scheduler and resource manager. The standard for managing GPU training clusters — submits jobs, allocates GPUs across nodes, manages queues and priorities. Training scripts are launched as Slurm jobs (sbatch) which set up the distributed environment (MASTER_ADDR, MASTER_PORT, WORLD_SIZE) before calling torchrun or mpirun.',
-    context: 'Job scheduling', scope: 'Training', license: 'Open source (GPL)'
+    context: 'Job scheduling', scope: 'Training', license: 'Open source (GPL)',
+    url: 'https://slurm.schedmd.com/'
   },
   'torchrun': {
     desc: 'PyTorch\'s built-in distributed process launcher (replacement for torch.distributed.launch). Starts one process per GPU, sets up environment variables (RANK, LOCAL_RANK, WORLD_SIZE), and initializes the process group for NCCL communication. Supports elastic training (processes can join/leave) and fault tolerance with automatic restarts.',
-    context: 'Process launcher', scope: 'Training', license: 'Open source (BSD, part of PyTorch)'
+    context: 'Process launcher', scope: 'Training', license: 'Open source (BSD, part of PyTorch)',
+    url: 'https://pytorch.org/docs/stable/elastic/run.html'
   },
   'Nsight Systems': {
     desc: 'NVIDIA\'s system-wide performance profiler. Captures a timeline of CPU and GPU activity — kernel launches, memory transfers, NCCL collectives, CUDA API calls — showing how they overlap and where bubbles occur. Essential for identifying pipeline stalls, communication bottlenecks, and poor GPU utilization in distributed training.',
-    context: 'Profiling', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)'
+    context: 'Profiling', scope: 'Training + Inference', license: 'Proprietary (NVIDIA, free to use)',
+    url: 'https://developer.nvidia.com/nsight-systems'
   },
   'Nsight Compute': {
     desc: 'NVIDIA\'s kernel-level GPU profiler. Analyzes individual CUDA kernels for compute throughput, memory bandwidth utilization, warp occupancy, and instruction mix. Used when optimizing custom CUDA/Triton kernels — identifies whether a kernel is compute-bound or memory-bound and which hardware units are underutilized.',
-    context: 'Kernel profiling', scope: 'Development', license: 'Proprietary (NVIDIA, free to use)'
+    context: 'Kernel profiling', scope: 'Development', license: 'Proprietary (NVIDIA, free to use)',
+    url: 'https://developer.nvidia.com/nsight-compute'
   },
   'DCGM': {
     desc: 'Data Center GPU Manager. Provides health monitoring, diagnostics, and policy management for GPU clusters. Tracks GPU utilization, memory errors (ECC), thermal throttling, and NVLink status across hundreds of GPUs. Integrates with Prometheus/Grafana for alerting. Critical for maintaining cluster health during long training runs.',
-    context: 'GPU fleet management', scope: 'Operations', license: 'Proprietary (NVIDIA, free to use)'
+    context: 'GPU fleet management', scope: 'Operations', license: 'Proprietary (NVIDIA, free to use)',
+    url: 'https://developer.nvidia.com/dcgm'
   },
   'Prometheus': {
     desc: 'Open-source monitoring system with a time-series database. Scrapes metrics endpoints (DCGM exporter, vLLM metrics, node exporter) and stores them for querying and alerting. Combined with Grafana for dashboards. The standard observability stack for both training cluster monitoring and inference serving metrics (latency, throughput, queue depth).',
-    context: 'Monitoring', scope: 'Operations', license: 'Open source (Apache 2.0)'
+    context: 'Monitoring', scope: 'Operations', license: 'Open source (Apache 2.0)',
+    url: 'https://prometheus.io/'
   },
   'W&B / MLflow': {
     desc: 'Experiment tracking platforms. Weights & Biases and MLflow log training metrics (loss curves, learning rate, gradient norms), hyperparameters, and artifacts (checkpoints, configs) for each training run. Enable comparison across runs, reproducibility, and team collaboration. W&B adds collaborative dashboards; MLflow adds model registry and deployment pipelines.',
-    context: 'Experiment tracking', scope: 'Training', license: 'W&B: SaaS/Enterprise; MLflow: Open source (Apache 2.0)'
+    context: 'Experiment tracking', scope: 'Training', license: 'W&B: SaaS/Enterprise; MLflow: Open source (Apache 2.0)',
+    url: 'https://wandb.ai/'
   },
   // Parallelism Strategies
   'Data Parallel (DDP)': {
@@ -818,6 +875,7 @@ function selectComp(name) {
     if (info.context) html += `<div class="detail-item"><strong>Context:</strong> ${info.context}</div>`;
     if (info.scope) html += `<div class="detail-item"><strong>Scope:</strong> ${info.scope}</div>`;
     if (info.license) html += `<div class="detail-item"><strong>License:</strong> ${info.license}</div>`;
+    if (info.url) html += `<div class="detail-item"><strong>Website:</strong> <a href="${info.url}" target="_blank" rel="noopener">${info.url}</a></div>`;
     html += `</div></div>`;
   }
 
