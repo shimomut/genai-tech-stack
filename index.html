@@ -686,94 +686,116 @@ const explanations = {
   // Parallelism Strategies
   'Data Parallel (DDP)': {
     desc: 'Distributed Data Parallel — the simplest and most common parallelism strategy. Each GPU holds a full copy of the model and processes a different mini-batch. Gradients are synchronized via AllReduce (NCCL) after each backward pass. Scales linearly with GPU count for models that fit in a single GPU\'s memory. PyTorch\'s DistributedDataParallel is the standard implementation.',
-    context: 'Distributed training', scope: 'Training', license: 'Concept (implemented in PyTorch, DeepSpeed, etc.)'
+    context: 'Distributed training', scope: 'Training', license: 'Concept (implemented in PyTorch, DeepSpeed, etc.)',
+    url: 'https://pytorch.org/docs/stable/notes/ddp.html'
   },
   'Tensor Parallel (TP)': {
     desc: 'Splits individual layers (weight matrices) across multiple GPUs. For a linear layer with weight W, TP partitions W column-wise or row-wise so each GPU computes a slice of the output. Requires AllReduce or AllGather at every layer boundary, so it demands high-bandwidth interconnects (NVLink). Typically used within a single node (4-8 GPUs). Megatron-LM pioneered this approach for transformers.',
-    context: 'Intra-layer parallelism', scope: 'Training + Inference', license: 'Concept (implemented in Megatron-LM, vLLM, etc.)'
+    context: 'Intra-layer parallelism', scope: 'Training + Inference', license: 'Concept (implemented in Megatron-LM, vLLM, etc.)',
+    url: 'https://arxiv.org/abs/1909.08053'
   },
   'Pipeline Parallel (PP)': {
     desc: 'Splits the model by layers across GPUs — GPU 0 runs layers 0-15, GPU 1 runs layers 16-31, etc. Micro-batching (splitting a batch into smaller chunks) keeps all GPUs busy and reduces the pipeline bubble. Megatron-LM uses interleaved scheduling to further minimize idle time. Best for very deep models that span multiple nodes where NVLink isn\'t available between all GPUs.',
-    context: 'Inter-layer parallelism', scope: 'Training', license: 'Concept (implemented in Megatron-LM, DeepSpeed, etc.)'
+    context: 'Inter-layer parallelism', scope: 'Training', license: 'Concept (implemented in Megatron-LM, DeepSpeed, etc.)',
+    url: 'https://arxiv.org/abs/1811.06965'
   },
   'Sequence Parallel (SP)': {
     desc: 'Extends tensor parallelism to operations that are normally replicated across GPUs — LayerNorm, Dropout, and activation storage. Instead of each GPU holding the full activation tensor, SP partitions activations along the sequence dimension. Reduces memory usage proportionally to the TP degree. Introduced in Megatron-LM v3 and critical for training with long sequences.',
-    context: 'Memory optimization', scope: 'Training', license: 'Concept (implemented in Megatron-LM)'
+    context: 'Memory optimization', scope: 'Training', license: 'Concept (implemented in Megatron-LM)',
+    url: 'https://arxiv.org/abs/2205.05198'
   },
   'Expert Parallel (MoE)': {
     desc: 'Parallelism strategy for Mixture-of-Experts models where different experts are placed on different GPUs. Each token is routed to a subset of experts (typically top-2), and All-to-All communication exchanges tokens between GPUs. Enables scaling model capacity (total parameters) without proportionally scaling compute per token. Used in models like Mixtral, Switch Transformer, and GPT-4.',
-    context: 'Sparse models', scope: 'Training + Inference', license: 'Concept (implemented in Megatron-LM, DeepSpeed, etc.)'
+    context: 'Sparse models', scope: 'Training + Inference', license: 'Concept (implemented in Megatron-LM, DeepSpeed, etc.)',
+    url: 'https://arxiv.org/abs/2101.03961'
   },
   'Context Parallel (CP)': {
     desc: 'Partitions the input sequence across GPUs for attention computation, enabling training on extremely long sequences (100k+ tokens). Each GPU computes attention for its chunk and exchanges KV cache slices with other GPUs via ring-style communication. Combined with Flash Attention for memory efficiency. Introduced in Megatron-LM for long-context LLM training.',
-    context: 'Long-context training', scope: 'Training', license: 'Concept (implemented in Megatron-LM)'
+    context: 'Long-context training', scope: 'Training', license: 'Concept (implemented in Megatron-LM)',
+    url: 'https://arxiv.org/abs/2405.07719'
   },
   // Fine-tuning & Adaptation
   'LoRA': {
     desc: 'Low-Rank Adaptation — injects small trainable rank-decomposition matrices (A and B) into frozen pre-trained weight matrices. Instead of fine-tuning all parameters, only the low-rank matrices are trained (typically 0.1-1% of total parameters). Reduces GPU memory requirements dramatically and produces small adapter files (~10-100MB) that can be swapped at serving time. The dominant fine-tuning method for LLMs.',
-    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Open source (Apache 2.0)'
+    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Open source (Apache 2.0)',
+    url: 'https://arxiv.org/abs/2106.09685'
   },
   'QLoRA': {
     desc: 'Quantized LoRA — combines 4-bit NormalFloat quantization of the base model (via bitsandbytes) with LoRA adapters trained in BF16. Enables fine-tuning a 65B-parameter model on a single 48GB GPU. The base model weights are frozen in 4-bit, while LoRA adapters and gradients use higher precision. Paged optimizers handle memory spikes during gradient checkpointing.',
-    context: 'Memory-efficient fine-tuning', scope: 'Training', license: 'Open source (MIT)'
+    context: 'Memory-efficient fine-tuning', scope: 'Training', license: 'Open source (MIT)',
+    url: 'https://arxiv.org/abs/2305.14314'
   },
   'PEFT': {
     desc: 'HuggingFace\'s Parameter-Efficient Fine-Tuning library. Provides a unified interface for LoRA, QLoRA, Prefix Tuning, Prompt Tuning, IA3, and other adapter methods. Integrates with HF Transformers and TRL for seamless fine-tuning workflows. Handles adapter merging, multi-adapter inference, and checkpoint management.',
-    context: 'Fine-tuning library', scope: 'Training', license: 'Open source (Apache 2.0)'
+    context: 'Fine-tuning library', scope: 'Training', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/huggingface/peft'
   },
   'Prompt Tuning': {
     desc: 'Prepends a set of learnable "soft prompt" embeddings to the input while keeping the entire model frozen. Only the prompt embeddings (typically 10-100 tokens) are trained — far fewer parameters than even LoRA. Performance approaches full fine-tuning as model size increases. Multiple task-specific prompts can be served from a single base model.',
-    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Concept (implemented in PEFT)'
+    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Concept (implemented in PEFT)',
+    url: 'https://arxiv.org/abs/2104.08691'
   },
   'Prefix Tuning': {
     desc: 'Prepends trainable prefix vectors to the key and value matrices at every transformer layer, not just the input embedding. More expressive than Prompt Tuning because it influences attention at every layer. The prefix parameters are typically 0.1% of the model size. Effective for generation tasks where controlling the model\'s behavior at each layer matters.',
-    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Concept (implemented in PEFT)'
+    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Concept (implemented in PEFT)',
+    url: 'https://arxiv.org/abs/2101.00190'
   },
   'IA3': {
     desc: 'Infused Adapter by Inhibiting and Amplifying Inner Activations. Learns three rescaling vectors that multiply the keys, values, and feed-forward intermediate activations. Even fewer trainable parameters than LoRA (typically 10× fewer). Particularly effective for few-shot learning scenarios where training data is limited.',
-    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Concept (implemented in PEFT)'
+    context: 'Parameter-efficient fine-tuning', scope: 'Training', license: 'Concept (implemented in PEFT)',
+    url: 'https://arxiv.org/abs/2205.05638'
   },
   // Safety & Alignment
   'RLHF': {
     desc: 'Reinforcement Learning from Human Feedback — the alignment technique that made ChatGPT possible. A three-stage process: (1) supervised fine-tuning on demonstrations, (2) training a reward model on human preference comparisons, (3) optimizing the LLM policy with PPO against the reward model. Computationally expensive — requires running 4 models simultaneously (policy, reference, reward, value).',
-    context: 'Alignment', scope: 'Training', license: 'Concept (implemented in TRL, etc.)'
+    context: 'Alignment', scope: 'Training', license: 'Concept (implemented in TRL, etc.)',
+    url: 'https://arxiv.org/abs/2203.02155'
   },
   'DPO': {
     desc: 'Direct Preference Optimization — a simpler alternative to RLHF that eliminates the need for a separate reward model and RL training loop. Directly optimizes the policy from preference pairs using a classification-like loss. Achieves comparable alignment quality to RLHF with significantly less compute and complexity. Rapidly becoming the preferred alignment method.',
-    context: 'Alignment', scope: 'Training', license: 'Concept (implemented in TRL, etc.)'
+    context: 'Alignment', scope: 'Training', license: 'Concept (implemented in TRL, etc.)',
+    url: 'https://arxiv.org/abs/2305.18290'
   },
   'TRL': {
     desc: 'Transformer Reinforcement Learning — HuggingFace\'s library for training language models with reinforcement learning. Provides implementations of SFT (supervised fine-tuning), reward modeling, PPO (for RLHF), DPO, and other alignment algorithms. Integrates with PEFT for parameter-efficient alignment and Accelerate for distributed training.',
-    context: 'Alignment library', scope: 'Training', license: 'Open source (Apache 2.0)'
+    context: 'Alignment library', scope: 'Training', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/huggingface/trl'
   },
   'Constitutional AI': {
     desc: 'Anthropic\'s alignment approach where the model critiques and revises its own outputs based on a set of principles (a "constitution"). Reduces reliance on human feedback by using the model itself as a judge. The process: generate → critique against principles → revise → use revised outputs as training data. Scales alignment supervision beyond what human labelers can provide.',
-    context: 'Alignment', scope: 'Training', license: 'Concept (Anthropic research)'
+    context: 'Alignment', scope: 'Training', license: 'Concept (Anthropic research)',
+    url: 'https://arxiv.org/abs/2212.08073'
   },
   'RLAIF': {
     desc: 'Reinforcement Learning from AI Feedback — replaces human preference labels with AI-generated preferences. A strong LLM judges which of two responses is better, and these AI preferences train the reward model. Dramatically reduces the cost and time of alignment data collection. Google\'s research shows RLAIF can match RLHF quality for many tasks.',
-    context: 'Alignment', scope: 'Training', license: 'Concept (Google research)'
+    context: 'Alignment', scope: 'Training', license: 'Concept (Google research)',
+    url: 'https://arxiv.org/abs/2309.00267'
   },
   // Model Formats
   'SafeTensors': {
     desc: 'HuggingFace\'s safe and fast tensor serialization format. Unlike Python pickle (which can execute arbitrary code on load), SafeTensors is designed to be safe from code injection attacks. Also faster than pickle — supports zero-copy deserialization and memory-mapped loading. Now the default format on the HuggingFace Hub for model weights.',
-    context: 'Model serialization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)'
+    context: 'Model serialization', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/huggingface/safetensors'
   },
   'GGUF': {
     desc: 'GPT-Generated Unified Format — the model format used by llama.cpp and its ecosystem (Ollama, LM Studio). Stores quantized model weights (2-bit to 8-bit) along with metadata (architecture, tokenizer, hyperparameters) in a single file. Designed for efficient CPU and mixed CPU/GPU inference on consumer hardware. Successor to the older GGML format.',
-    context: 'Quantized model format', scope: 'Inference', license: 'Open source (MIT)'
+    context: 'Quantized model format', scope: 'Inference', license: 'Open source (MIT)',
+    url: 'https://github.com/ggerganov/ggml/blob/master/docs/gguf.md'
   },
   'ONNX Format': {
     desc: 'Open Neural Network Exchange — a framework-agnostic model representation format. Models trained in PyTorch or TensorFlow can be exported to ONNX and run on any ONNX-compatible runtime (ONNX Runtime, TensorRT, OpenVINO). Defines a standard set of operators and a graph-based IR. Useful for cross-platform deployment but less common for large LLMs.',
-    context: 'Interoperability', scope: 'Inference', license: 'Open source (Apache 2.0)'
+    context: 'Interoperability', scope: 'Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://onnx.ai/'
   },
   'Pickle / .bin': {
     desc: 'Python\'s native serialization format, historically the default for PyTorch model checkpoints (torch.save). Stores the full Python object graph including tensors. Security risk: pickle can execute arbitrary code during deserialization, making untrusted model files dangerous. Being replaced by SafeTensors for model distribution, but still used for training checkpoints.',
-    context: 'Legacy serialization', scope: 'Training + Inference', license: 'Part of Python standard library'
+    context: 'Legacy serialization', scope: 'Training + Inference', license: 'Part of Python standard library',
+    url: 'https://docs.python.org/3/library/pickle.html'
   },
   'Checkpointing': {
     desc: 'The practice of periodically saving model state (weights, optimizer states, learning rate scheduler, RNG states) during training for fault tolerance. Distributed checkpointing (FSDP, DeepSpeed) saves sharded state across GPUs and can reshard when resuming on a different GPU count. Async checkpointing avoids blocking training. Critical for multi-day training runs on large clusters.',
-    context: 'Fault tolerance', scope: 'Training', license: 'Concept (implemented in PyTorch, DeepSpeed, etc.)'
+    context: 'Fault tolerance', scope: 'Training', license: 'Concept (implemented in PyTorch, DeepSpeed, etc.)',
+    url: 'https://pytorch.org/docs/stable/checkpoint.html'
   },
 };
 
