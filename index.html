@@ -286,7 +286,7 @@ body { background: var(--color-bg-secondary); }</style><style id="qw-print-fix">
 <script>
 const layers = [
   { name: 'Orchestration &\nMonitoring', color: '#6366f1',
-    comps: ['Docker','Kubernetes','Ray','Slurm','torchrun','Nsight Systems','Nsight Compute','DCGM','Prometheus','W&B / MLflow'] },
+    comps: ['Docker','Kubernetes','llm-d','Ray','Slurm','torchrun','Nsight Systems','Nsight Compute','DCGM','Prometheus','W&B / MLflow'] },
   { name: 'Safety &\nAlignment', color: '#dc2626',
     comps: ['RLHF','DPO','TRL','Constitutional AI','RLAIF'] },
   { name: 'Fine-tuning &\nAdaptation', color: '#a855f7',
@@ -296,7 +296,7 @@ const layers = [
   { name: 'Model\nFormats', color: '#0ea5e9',
     comps: ['SafeTensors','GGUF','ONNX Format','Pickle / .bin','Checkpointing'] },
   { name: 'Inference &\nServing', color: '#06b6d4',
-    comps: ['vLLM','TensorRT-LLM','Triton Inference Server','TGI','SGLang','llama.cpp','ONNX Runtime'] },
+    comps: ['vLLM','TensorRT-LLM','Triton Inference Server','TGI','SGLang','llama.cpp','ONNX Runtime','Mooncake','LMCache'] },
   { name: 'Training\nTools', color: '#ec4899',
     comps: ['Megatron-LM','DeepSpeed','FSDP','NeMo','Flash Attention','Apex'] },
   { name: 'Parallelism\nStrategies', color: '#e11d48',
@@ -306,7 +306,7 @@ const layers = [
   { name: 'ML\nFrameworks', color: '#3b82f6',
     comps: ['PyTorch','JAX','TensorFlow'] },
   { name: 'Communication', color: '#f97316',
-    comps: ['NCCL','MPI (Open MPI)','RDMA / InfiniBand','Libfabric'] },
+    comps: ['NCCL','NIXL','MPI (Open MPI)','RDMA / InfiniBand','Libfabric'] },
   { name: 'CUDA &\nRuntime', color: '#22c55e',
     comps: ['CUDA Toolkit','cuDNN','cuBLAS','CUTLASS','CUDA Graphs'] },
   { name: 'Drivers', color: '#14b8a6',
@@ -330,6 +330,7 @@ const deps = {
   'CUTLASS': ['CUDA Toolkit'],
   'CUDA Graphs': ['CUDA Toolkit'],
   'NCCL': ['CUDA Toolkit','NVLink / NVSwitch','Libfabric','NVIDIA Driver'],
+  'NIXL': ['CUDA Toolkit','RDMA / InfiniBand','Libfabric','NCCL'],
   'MPI (Open MPI)': ['Libfabric'],
   'RDMA / InfiniBand': ['InfiniBand / EFA NIC'],
   'Libfabric': ['EFA Driver','InfiniBand / EFA NIC'],
@@ -356,6 +357,8 @@ const deps = {
   'SGLang': ['PyTorch','CUDA Toolkit','Flash Attention'],
   'llama.cpp': ['CPU / Host Memory'],
   'ONNX Runtime': ['CUDA Toolkit','cuDNN'],
+  'Mooncake': ['PyTorch','CUDA Toolkit','NCCL','NIXL','RDMA / InfiniBand'],
+  'LMCache': ['PyTorch','vLLM','SGLang'],
   'HF Transformers': ['PyTorch','TensorFlow','JAX'],
   'SentencePiece': [],
   'tiktoken': [],
@@ -365,6 +368,7 @@ const deps = {
   'HF Datasets': ['Arrow / Parquet'],
   'Docker': [],
   'Kubernetes': ['Docker'],
+  'llm-d': ['Kubernetes','vLLM'],
   'Ray': ['PyTorch'],
   'Slurm': [],
   'torchrun': ['PyTorch','NCCL'],
@@ -467,6 +471,11 @@ const explanations = {
     desc: 'NVIDIA Collective Communications Library. Implements multi-GPU and multi-node collective operations: AllReduce, AllGather, ReduceScatter, Broadcast, etc. These are the fundamental building blocks of distributed training — gradient synchronization (AllReduce in data parallelism), activation exchange (AllGather in tensor parallelism), and parameter sharding (ReduceScatter in FSDP/ZeRO). NCCL auto-detects NVLink, NVSwitch, PCIe, and network topology to choose optimal algorithms.',
     context: 'Distributed compute', scope: 'Training + Inference', license: 'Open source (BSD, NVIDIA)',
     url: 'https://github.com/NVIDIA/nccl'
+  },
+  'NIXL': {
+    desc: 'NVIDIA Inference Xfer Library — an open-source data transfer library purpose-built for disaggregated LLM inference. NIXL moves KV cache tensors between prefill GPUs and decode GPUs at wire speed over RDMA, NVMe, or shared memory. It abstracts the transport layer so inference engines (vLLM, SGLang, TensorRT-LLM) can efficiently transfer KV caches without managing low-level networking. A critical enabler for prefill/decode disaggregation architectures where different GPU pools handle different inference phases.',
+    context: 'Inference data transfer', scope: 'Inference', license: 'Open source (Apache 2.0, NVIDIA)',
+    url: 'https://github.com/ai-dynamo/nixl'
   },
   'MPI (Open MPI)': {
     desc: 'Message Passing Interface — the standard for distributed process management in HPC. In GenAI, MPI is primarily used as a process launcher (mpirun) and for out-of-band coordination, while NCCL handles the actual GPU data transfers. Some legacy training scripts use MPI collectives directly, but most modern frameworks use NCCL for GPU communication and MPI/torchrun only for bootstrapping.',
@@ -598,6 +607,16 @@ const explanations = {
     context: 'Cross-platform inference', scope: 'Inference', license: 'Open source (MIT)',
     url: 'https://onnxruntime.ai/'
   },
+  'Mooncake': {
+    desc: 'A KVCache-centric disaggregated serving platform originally built for Moonshot AI\'s Kimi service. Mooncake separates prefill and decode into independent clusters and uses underutilized CPU, DRAM, and SSD resources to build a distributed KV cache pool. It provides high-throughput, low-latency KV cache storage and transfer for inference engines like SGLang and vLLM. Now part of the PyTorch ecosystem and a CNCF project, it is a key building block for production disaggregated inference architectures.',
+    context: 'Disaggregated inference', scope: 'Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/kvcache-ai/Mooncake'
+  },
+  'LMCache': {
+    desc: 'An open-source KV cache management layer for enterprise-scale LLM inference. LMCache extracts, stores, and shares KV caches generated by vLLM and SGLang across engines and queries. It enables prefix caching (reusing KV caches for shared system prompts), multi-turn conversation acceleration, and cross-engine cache sharing — all by offloading KV caches to CPU memory, SSD, or remote storage. Reduces redundant prefill computation and improves throughput for workloads with high prompt reuse.',
+    context: 'KV cache optimization', scope: 'Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/LMCache/LMCache'
+  },
   'HF Transformers': {
     desc: 'The standard library for working with pre-trained models. Provides a unified API (AutoModel, AutoTokenizer, pipeline) for 200k+ models on the HuggingFace Hub. Handles model loading, tokenization, and generation with a consistent interface across architectures. The starting point for most LLM projects before moving to specialized serving frameworks.',
     context: 'Model library', scope: 'Training + Inference', license: 'Open source (Apache 2.0)',
@@ -642,6 +661,11 @@ const explanations = {
     desc: 'Container orchestration platform for managing inference serving clusters. Handles scaling, load balancing, rolling updates, and health checks for model serving deployments. With GPU scheduling plugins and operators (e.g., KubeFlow, NVIDIA GPU Operator), it manages GPU allocation across multiple models and replicas.',
     context: 'Orchestration', scope: 'Inference (primarily)', license: 'Open source (Apache 2.0)',
     url: 'https://kubernetes.io/'
+  },
+  'llm-d': {
+    desc: 'A Kubernetes-native distributed LLM inference framework backed by Red Hat, Google, IBM, CoreWeave, and NVIDIA. Built on vLLM and the Kubernetes Inference Gateway, llm-d provides KV-cache-aware routing, disaggregated prefill/decode serving, and intelligent load balancing for LLM deployments. Donated to CNCF Sandbox in 2026. It bridges the gap between raw inference engines and production Kubernetes operations, offering a modular, end-to-end serving solution with the fastest time-to-value for teams deploying large models at scale.',
+    context: 'Distributed inference orchestration', scope: 'Inference', license: 'Open source (Apache 2.0)',
+    url: 'https://github.com/llm-d/llm-d'
   },
   'Ray': {
     desc: 'Distributed compute framework used by vLLM as its execution backend. Ray manages worker processes across GPUs and nodes, handles scheduling, and provides actor-based parallelism. Ray Serve adds HTTP serving capabilities. Also used for distributed hyperparameter tuning (Ray Tune) and data processing (Ray Data) in ML pipelines.',
